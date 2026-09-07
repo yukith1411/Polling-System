@@ -1,0 +1,1 @@
+ALTER TABLE "Student" ADD COLUMN "registerNumber" TEXT NOT NULL DEFAULT '';

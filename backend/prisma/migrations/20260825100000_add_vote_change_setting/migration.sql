@@ -1,0 +1,1 @@
+ALTER TABLE "Poll" ADD COLUMN "allowVoteChange" BOOLEAN NOT NULL DEFAULT false;

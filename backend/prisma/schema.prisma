@@ -1,0 +1,163 @@
+// Polling System — Prisma schema
+// Production uses PostgreSQL. Set DATABASE_URL in the environment.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Teacher {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  department   String   @default("")
+  passwordHash String
+  role         String   @default("TEACHER")
+  createdAt    DateTime @default(now())
+
+  classes Class[]
+  polls   Poll[]
+}
+
+model Class {
+  id        String   @id @default(cuid())
+  name      String
+  teacherId String
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  enrollments ClassEnrollment[]
+  polls       Poll[]
+
+  @@index([teacherId])
+}
+
+// Master directory of students (email is the identity used for authorization)
+model Student {
+  id             String   @id @default(cuid())
+  registerNumber String   @default("")
+  name           String
+  email          String   @unique
+  createdAt      DateTime @default(now())
+
+  enrollments ClassEnrollment[]
+}
+
+model ClassEnrollment {
+  id        String  @id @default(cuid())
+  classId   String
+  studentId String
+  class     Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, studentId])
+  @@index([studentId])
+}
+
+model Poll {
+  id                  String     @id @default(cuid())
+  title               String
+  topic               String // used for filtering/export, e.g. "Chapter 4 Quiz"
+  description         String?
+  shareToken          String     @unique // opaque token used in the public link
+  status              String     @default("DRAFT")
+  allowMultipleAnswer Boolean    @default(false) // single-select vs multi-select voting
+  allowVoteChange    Boolean    @default(false)
+  expiresAt           DateTime?
+  teacherId           String
+  classId             String
+  teacher             Teacher    @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  class               Class      @relation(fields: [classId], references: [id], onDelete: Cascade)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  options           PollOption[]
+  authorizedEmails  PollAuthorizedEmail[]
+  votes             Vote[]
+  otpCodes          OtpCode[]
+  accessAttempts    AccessAttempt[]
+
+  @@index([teacherId])
+  @@index([classId])
+}
+
+model PollOption {
+  id     String @id @default(cuid())
+  pollId String
+  poll   Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  text   String
+  order  Int    @default(0)
+
+  voteSelections VoteOption[]
+
+  @@index([pollId])
+}
+
+// Explicit per-poll authorization list, snapshotted from class enrollment at
+// creation time but independently editable by the teacher afterward.
+model PollAuthorizedEmail {
+  id     String @id @default(cuid())
+  pollId String
+  poll   Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  email  String
+
+  @@unique([pollId, email])
+  @@index([pollId])
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  pollId    String
+  poll      Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  email     String
+  codeHash  String
+  expiresAt DateTime
+  consumed  Boolean  @default(false)
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([pollId, email])
+}
+
+// One vote record per (poll, student) — enforces "vote only once" at the DB level.
+model Vote {
+  id         String   @id @default(cuid())
+  pollId     String
+  poll       Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  voterEmail String
+  createdAt  DateTime @default(now())
+
+  selections VoteOption[]
+
+  @@unique([pollId, voterEmail])
+  @@index([pollId])
+}
+
+model VoteOption {
+  id       String     @id @default(cuid())
+  voteId   String
+  vote     Vote       @relation(fields: [voteId], references: [id], onDelete: Cascade)
+  optionId String
+  option   PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([voteId, optionId])
+  @@index([optionId])
+}
+
+// Logs every access attempt (including unauthorized ones) for security visibility —
+// unauthorized users never receive poll content, but the attempt is still recorded.
+model AccessAttempt {
+  id        String   @id @default(cuid())
+  pollId    String
+  poll      Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  email     String
+  authorized Boolean
+  reason    String? // e.g. "not_enrolled", "otp_failed", "already_voted", "poll_locked"
+  createdAt DateTime @default(now())
+
+  @@index([pollId])
+}

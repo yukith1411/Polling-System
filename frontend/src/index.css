@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.theme-dark body { background: #0f172a; color: #e2e8f0; }
+.theme-dark .bg-white { background-color: #1e293b; }
+.theme-dark .bg-slate-50 { background-color: #0f172a; }
+.theme-dark .bg-slate-100 { background-color: #334155; }
+.theme-dark .text-slate-900 { color: #f8fafc; }
+.theme-dark .text-slate-800 { color: #f1f5f9; }
+.theme-dark .text-slate-700, .theme-dark .text-slate-600 { color: #cbd5e1; }
+.theme-dark .text-slate-500, .theme-dark .text-slate-400 { color: #94a3b8; }
+.theme-dark .border-slate-200, .theme-dark .border-slate-300 { border-color: #475569; }
+.theme-dark input, .theme-dark textarea, .theme-dark select { background-color: #1e293b; color: #f8fafc; }
+
+/* Keep the option-wise report tools after the main history list. */
+.poll-history-page > section:first-child { order: 2; }
