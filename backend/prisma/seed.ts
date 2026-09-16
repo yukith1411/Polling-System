@@ -6,17 +6,26 @@ const prisma = new PrismaClient();
 
 async function main() {
   const passwordHash = await bcrypt.hash("password123", 10);
+  const adminPasswordHash = await bcrypt.hash("Admin@123", 10);
   const teacher = await prisma.teacher.upsert({
     where: { email: "teacher@example.com" },
     update: {},
     create: { name: "Ms. Sharma", email: "teacher@example.com", passwordHash },
   });
 
-  await prisma.teacher.upsert({
-    where: { email: "admin@example.com" },
-    update: { role: "ADMIN" },
-    create: { name: "System Admin", email: "admin@example.com", passwordHash, role: "ADMIN" },
-  });
+  const existingAdmin = await prisma.teacher.findFirst({ where: { role: "ADMIN" } });
+  if (existingAdmin && existingAdmin.email !== "admin@gmail.com") {
+    await prisma.teacher.update({
+      where: { id: existingAdmin.id },
+      data: { email: "admin@gmail.com", passwordHash: adminPasswordHash, role: "ADMIN" },
+    });
+  } else {
+    await prisma.teacher.upsert({
+      where: { email: "admin@gmail.com" },
+      update: { passwordHash: adminPasswordHash, role: "ADMIN" },
+      create: { name: "System Admin", email: "admin@gmail.com", passwordHash: adminPasswordHash, role: "ADMIN" },
+    });
+  }
 
   const cls = await prisma.class.create({
     data: { name: "Grade 10 - Section A", teacherId: teacher.id },
@@ -53,7 +62,7 @@ async function main() {
     },
   });
 
-  console.log("Seeded: teacher login = teacher@example.com / password123");
+  console.log("Seeded: admin login = admin@gmail.com / Admin@123");
 }
 
 main()
